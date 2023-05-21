@@ -40,7 +40,6 @@ def main():
             conn.send(__encode_ping_response())
         else:
             print("unknown command closing connection.")
-        conn.close()
 
 
 if __name__ == "__main__":
