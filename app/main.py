@@ -25,19 +25,22 @@ def main():
     print("Logs from your program will appear here!")
 
     server_socket = socket.create_server(("localhost", 6379), reuse_port=True)
-    (conn, address) = server_socket.accept()  # wait for client
 
-    print("Received conn from: " + str(address))
+    while True:
+        (conn, address) = server_socket.accept()  # wait for client
 
-    msg = conn.recv(BUFFER_SIZE)
-    print("Received " + str(msg) + " type: " + str(type(msg)) + " from " + str(address))
+        print("Received conn from: " + str(address))
 
-    command = __decode_received_msg(msg)
+        msg = conn.recv(BUFFER_SIZE)
+        print("Received " + str(msg) + " type: " + str(type(msg)) + " from " + str(address))
 
-    if command == "ping":
-        conn.send(__encode_ping_response())
-    else:
-        print("unknown command closing connection.")
+        command = __decode_received_msg(msg)
+
+        if command == "ping":
+            conn.send(__encode_ping_response())
+        else:
+            print("unknown command closing connection.")
+        conn.close()
 
 
 if __name__ == "__main__":
