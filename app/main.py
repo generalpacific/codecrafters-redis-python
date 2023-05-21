@@ -26,9 +26,8 @@ def main():
 
     server_socket = socket.create_server(("localhost", 6379), reuse_port=True)
 
+    (conn, address) = server_socket.accept()  # wait for client
     while True:
-        (conn, address) = server_socket.accept()  # wait for client
-
         print("Received conn from: " + str(address))
 
         msg = conn.recv(BUFFER_SIZE)
@@ -37,9 +36,12 @@ def main():
         command = __decode_received_msg(msg)
 
         if command == "ping":
+            print("Received ping. Returning PONG.")
             conn.send(__encode_ping_response())
         else:
             print("unknown command closing connection.")
+            conn.close()
+            (conn, address) = server_socket.accept()  # wait for client
 
 
 if __name__ == "__main__":
