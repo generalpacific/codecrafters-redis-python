@@ -1,47 +1,23 @@
-import socket
+import socketserver
 
 BUFFER_SIZE = 100
 
 
-def __decode_received_msg(msg):
-    print("Decoding: " + str(msg))
-
-    msg_str = msg.decode()
-    print("Msg str: " + msg_str)
-
-    if "ping" in msg_str:
-        return "ping"
-    else:
-        return "unknown_command"
-
-
-def __encode_ping_response():
-    response = "+PONG\r\n"
-    return response.encode("utf-8")
+class RedisHandler(socketserver.BaseRequestHandler):
+    def handle(self):
+        # self.request is the TCP socket connected to the client
+        self.data = self.request.recv(BUFFER_SIZE).strip()
+        # We presume the client will only send 'PING'
+        print("Received request: " + str(self.data))
+        self.request.sendall(b'+PONG\r\n')
 
 
 def main():
     # You can use print statements as follows for debugging, they'll be visible when running tests.
     print("Logs from your program will appear here!")
 
-    server_socket = socket.create_server(("localhost", 6379), reuse_port=True)
-
-    (conn, address) = server_socket.accept()  # wait for client
-    while True:
-        print("Received conn from: " + str(address))
-
-        msg = conn.recv(BUFFER_SIZE)
-        print("Received " + str(msg) + " type: " + str(type(msg)) + " from " + str(address))
-
-        command = __decode_received_msg(msg)
-
-        if command == "ping":
-            print("Received ping. Returning PONG.")
-            conn.send(__encode_ping_response())
-        else:
-            print("unknown command closing connection.")
-            conn.close()
-            (conn, address) = server_socket.accept()  # wait for client
+    with socketserver.ThreadingTCPServer(("localhost", 6379), RedisHandler) as server:
+        server.serve_forever()
 
 
 if __name__ == "__main__":
