@@ -18,7 +18,7 @@ def main():
 
     socketserver.ThreadingTCPServer.allow_reuse_address = True
     with socketserver.ThreadingTCPServer(("localhost", 6379), RedisHandler) as server:
-        server.serve_forever()
+        await server.serve_forever()
 
 
 if __name__ == "__main__":
