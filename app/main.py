@@ -1,6 +1,37 @@
 import asyncio
+from enum import Enum
 
 BUFFER_SIZE = 1024
+
+
+class RedisCommand(Enum):
+    ECHO = 1,
+    PING = 2,
+    UNKNOWN = 3
+
+
+async def decode_size_array(arg):
+    return int(arg[1:])
+
+
+async def decode_echo(request):
+    parts = request.split("\r\n")
+    print("Debug parts: \n")
+    for part in parts:
+        print(part)
+    size = await decode_size_array(parts[0])
+    if size == 1:
+        return "".encode()
+    return parts[4].encode()
+
+
+async def get_command(request):
+    if "ECHO" in request:
+        return RedisCommand.ECHO
+    elif "PING" in request:
+        return RedisCommand.PING
+    else:
+        return RedisCommand.UNKNOWN
 
 
 async def handle_client(reader, writer):
@@ -9,7 +40,15 @@ async def handle_client(reader, writer):
         print("Got request: " + str(request))
         if not request:
             break
-        writer.write("+PONG\r\n".encode())
+        request = request.decode()
+        command = await get_command(request)
+        if command is RedisCommand.PING:
+            writer.write("+PONG\r\n".encode())
+        elif command is RedisCommand.ECHO:
+            argument = await decode_echo(request)
+            writer.write(b"$" + str(len(argument)).encode() + b'\r\n' + argument + b"\r\n")
+        else:
+            writer.write("+UNKNOWN\r\n".encode())
         await writer.drain()
     writer.close()
 
