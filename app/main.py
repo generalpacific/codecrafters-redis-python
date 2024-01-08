@@ -28,7 +28,7 @@ async def decode_echo(request):
 async def get_command(request):
     if "ECHO" in request:
         return RedisCommand.ECHO
-    elif "PING" in request:
+    elif "PING" in request or "ping" in request:
         return RedisCommand.PING
     else:
         return RedisCommand.UNKNOWN
