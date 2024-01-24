@@ -20,9 +20,6 @@ async def decode_size_array(arg):
 
 async def decode_echo(request):
     parts = request.split("\r\n")
-    print("Debug parts: \n")
-    for part in parts:
-        print(part)
     size = await decode_size_array(parts[0])
     if size == 1:
         return "".encode()
@@ -31,9 +28,6 @@ async def decode_echo(request):
 
 async def decode_set(request):
     parts = request.split("\r\n")
-    print("Debug parts: \n")
-    for part in parts:
-        print(part)
     size = await decode_size_array(parts[0])
     if size == 1:
         return "".encode()
@@ -42,9 +36,6 @@ async def decode_set(request):
 
 async def decode_get(request):
     parts = request.split("\r\n")
-    print("Debug parts: \n")
-    for part in parts:
-        print(part)
     size = await decode_size_array(parts[0])
     if size == 1:
         return "".encode()
@@ -80,7 +71,6 @@ async def handle_client(reader, writer):
         elif command is RedisCommand.SET:
             arguments = await decode_set(request)
             IN_MEM_DATABASE[arguments[0]] = arguments[1]
-            print("IN MEM DATABASE: " + str(IN_MEM_DATABASE))
             writer.write(b'$2\r\nOK\r\n')
         elif command is RedisCommand.GET:
             argument = await decode_get(request)
