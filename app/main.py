@@ -35,7 +35,7 @@ async def decode_set(request):
         print(part)
     if size == 1:
         return "".encode()
-    if len(parts) > 7:
+    if len(parts) > 8:
         return [parts[4], parts[6], datetime.datetime.now() + datetime.timedelta(milliseconds=int(parts[10]))]
     else:
         return [parts[4], parts[6], datetime.datetime.max]
