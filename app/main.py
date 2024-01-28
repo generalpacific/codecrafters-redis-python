@@ -1,10 +1,13 @@
+import argparse
 import asyncio
 import datetime
+import sys
 from enum import Enum
 
 BUFFER_SIZE = 1024
-
 IN_MEM_DATABASE = {}
+DIRECTORY = ""
+DBFILENAME = ""
 
 
 class RedisCommand(Enum):
@@ -12,7 +15,8 @@ class RedisCommand(Enum):
     PING = 2,
     SET = 3,
     GET = 4,
-    UNKNOWN = 5
+    CONFIG = 5,
+    UNKNOWN = 6
 
 
 async def decode_size_array(arg):
@@ -49,15 +53,28 @@ async def decode_get(request):
     return parts[4]
 
 
+async def decode_config(request):
+    parts = request.split("\r\n")
+    size = await decode_size_array(parts[0])
+    if size == 1:
+        return "".encode()
+    return parts[6]
+
+
 async def get_command(request):
-    if "ECHO" in request or "echo" in request:
+    parts = request.split("\r\n")
+    command = parts[2]
+    print(f"Decoded command string: {command}")
+    if command == "ECHO" or command == "echo":
         return RedisCommand.ECHO
-    elif "PING" in request or "ping" in request:
+    elif command == "PING" or command == "ping":
         return RedisCommand.PING
-    elif "SET" in request or "set" in request:
-        return RedisCommand.SET
-    elif "GET" in request or "get" in request:
+    elif command == "GET" or command == "get":
         return RedisCommand.GET
+    elif command == "SET" or command == "set":
+        return RedisCommand.SET
+    elif command == "CONFIG" or command == "config":
+        return RedisCommand.CONFIG
     else:
         return RedisCommand.UNKNOWN
 
@@ -88,7 +105,16 @@ async def handle_client(reader, writer):
                 writer.write(b"$" + str(len(return_value)).encode() + b'\r\n' + return_value.encode() + b"\r\n")
             else:
                 writer.write(b"$-1\r\n")
-
+        elif command is RedisCommand.CONFIG:
+            argument = await decode_config(request)
+            print(f"Argument for config: {argument}")
+            if argument == "dir":
+                writer.write(
+                    b"*2\r\n$3\r\ndir\r\n$" + str(len(DIRECTORY)).encode() + b'\r\n' + DIRECTORY.encode() + b"\r\n")
+            else:
+                writer.write(
+                    b"*2\r\n$10\r\ndbfilename\r\n$" + str(
+                        len(DBFILENAME)).encode() + b'\r\n' + DBFILENAME.encode() + b"\r\n")
         else:
             writer.write("+UNKNOWN\r\n".encode())
         await writer.drain()
@@ -105,6 +131,25 @@ async def start_server(host, port):
 def main():
     # You can use print statements as follows for debugging, they'll be visible when running tests.
     print("Logs from your program will appear here!")
+    if len(sys.argv) > 1:
+        for i, arg in enumerate(sys.argv[1:], start=1):
+            print(f"Argument {i}: {arg}")
+
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--dir', type=str, required=True, help='The directory path')
+        parser.add_argument('--dbfilename', type=str, required=True, help='The database file name')
+
+        args = parser.parse_args()
+
+        global DIRECTORY
+        global DBFILENAME
+        DIRECTORY = args.dir
+        DBFILENAME = args.dbfilename
+
+        print(f"Directory: {DIRECTORY}")
+        print(f"Database Filename: {DBFILENAME}")
+    else:
+        print("No additional command-line arguments were provided.")
     asyncio.run(start_server("localhost", 6379))
 
 
