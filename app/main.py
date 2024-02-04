@@ -138,13 +138,16 @@ async def handle_client(reader, writer):
             writer.write(b'$2\r\nOK\r\n')
         elif command is RedisCommand.GET:
             argument = await decode_get(request)
-            db_value = IN_MEM_DATABASE[argument]
-            ttl = db_value[1]
-            return_value = db_value[0]
-            if ttl >= datetime.datetime.now():
-                writer.write(b"$" + str(len(return_value)).encode() + b'\r\n' + return_value.encode() + b"\r\n")
-            else:
+            if argument not in IN_MEM_DATABASE:
                 writer.write(b"$-1\r\n")
+            else:
+                db_value = IN_MEM_DATABASE[argument]
+                ttl = db_value[1]
+                return_value = db_value[0]
+                if ttl >= datetime.datetime.now():
+                    writer.write(b"$" + str(len(return_value)).encode() + b'\r\n' + return_value.encode() + b"\r\n")
+                else:
+                    writer.write(b"$-1\r\n")
         elif command is RedisCommand.CONFIG:
             argument = await decode_config(request)
             print(f"Argument for config: {argument}")
