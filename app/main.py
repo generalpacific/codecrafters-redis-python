@@ -168,7 +168,7 @@ async def handle_client(reader, writer):
                 file_content = file.read()
                 print(file_content)
             print("key: " + key)
-            writer.write(b"$" + str(len(key)).encode() + b'\r\n' + key.encode() + b"\r\n")
+            writer.write(b"*1\r\n$" + str(len(key)).encode() + b'\r\n' + key.encode() + b"\r\n")
         else:
             writer.write("+UNKNOWN\r\n".encode())
         await writer.drain()
