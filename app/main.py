@@ -46,10 +46,10 @@ async def decode_set(request):
 
 async def decode_get(request):
     parts = request.split("\r\n")
-    print("parts: ")
-    for part in parts:
-        print(part)
-    return ""
+    size = await decode_size_array(parts[0])
+    if size == 1:
+        return "".encode()
+    return parts[4]
 
 
 async def read_til_kvs(file):
@@ -134,16 +134,19 @@ async def handle_client(reader, writer):
             writer.write(b"$" + str(len(argument)).encode() + b'\r\n' + argument + b"\r\n")
         elif command is RedisCommand.SET:
             arguments = await decode_set(request)
+            print(f"Setting key: {arguments[0]} value: {arguments[1]}")
             IN_MEM_DATABASE[arguments[0]] = (arguments[1], arguments[2])
             writer.write(b'$2\r\nOK\r\n')
         elif command is RedisCommand.GET:
             argument = await decode_get(request)
+            print(f"Decoded argument from get request: {argument}")
             if argument not in IN_MEM_DATABASE:
                 writer.write(b"$-1\r\n")
             else:
                 db_value = IN_MEM_DATABASE[argument]
                 ttl = db_value[1]
                 return_value = db_value[0]
+                print(f"In memory values: {return_value}, ttl: {ttl}")
                 if ttl >= datetime.datetime.now():
                     writer.write(b"$" + str(len(return_value)).encode() + b'\r\n' + return_value.encode() + b"\r\n")
                 else:
