@@ -3,6 +3,7 @@ import asyncio
 import datetime
 import sys
 from enum import Enum
+import struct
 
 BUFFER_SIZE = 1024
 IN_MEM_DATABASE = {}
@@ -16,7 +17,8 @@ class RedisCommand(Enum):
     SET = 3,
     GET = 4,
     CONFIG = 5,
-    UNKNOWN = 6
+    KEYS = 6,
+    UNKNOWN = 7
 
 
 async def decode_size_array(arg):
@@ -34,9 +36,6 @@ async def decode_echo(request):
 async def decode_set(request):
     parts = request.split("\r\n")
     size = await decode_size_array(parts[0])
-    print("parts: ")
-    for part in parts:
-        print(part)
     if size == 1:
         return "".encode()
     if len(parts) > 8:
@@ -47,10 +46,49 @@ async def decode_set(request):
 
 async def decode_get(request):
     parts = request.split("\r\n")
-    size = await decode_size_array(parts[0])
-    if size == 1:
-        return "".encode()
-    return parts[4]
+    print("parts: ")
+    for part in parts:
+        print(part)
+    return ""
+
+
+async def read_til_kvs(file):
+    while operand := file.read(1):
+        print(operand)
+        if operand == b'\xfb':
+            # we reached the byte just before kv pairs
+            break
+    # Skip next to bytes which are hashtable size.
+    file.read(3)
+
+
+async def read_unsigned_char(file):
+    return struct.unpack("B", file.read(1))[0]
+
+
+async def get_string_len(file):
+    first_byte = await read_unsigned_char(file)
+    print("firstbyte")
+    print(first_byte)
+    # Check if the two most significant bits are 00
+    if first_byte >> 6 == 0b00:
+        # 00 -> The next 6 bits represent the length of the string
+        return first_byte & 0b00111111
+    else:
+        # Handle other cases
+        print("Invalid first byte", first_byte)
+        return None
+
+
+async def read_string(file):
+    length = await get_string_len(file)
+    print("length is " + str(length))
+    return file.read(length).decode()
+
+
+async def decode_file_content(file):
+    await read_til_kvs(file)
+    return await read_string(file)
 
 
 async def decode_config(request):
@@ -75,6 +113,8 @@ async def get_command(request):
         return RedisCommand.SET
     elif command == "CONFIG" or command == "config":
         return RedisCommand.CONFIG
+    elif command == "KEYS" or command == "keys":
+        return RedisCommand.KEYS
     else:
         return RedisCommand.UNKNOWN
 
@@ -115,6 +155,14 @@ async def handle_client(reader, writer):
                 writer.write(
                     b"*2\r\n$10\r\ndbfilename\r\n$" + str(
                         len(DBFILENAME)).encode() + b'\r\n' + DBFILENAME.encode() + b"\r\n")
+        elif command is RedisCommand.KEYS:
+            with open(DIRECTORY + "/" + DBFILENAME, 'rb') as file:
+                key = await decode_file_content(file)
+            with open(DIRECTORY + "/" + DBFILENAME, 'rb') as file:
+                file_content = file.read()
+                print(file_content)
+            print("key: " + key)
+            writer.write(b"$" + str(len(key)).encode() + b'\r\n' + key.encode() + b"\r\n")
         else:
             writer.write("+UNKNOWN\r\n".encode())
         await writer.drain()
